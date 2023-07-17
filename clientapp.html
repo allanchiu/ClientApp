@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Agent-level Evaluations Page</title>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+        integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+        integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+        crossorigin="anonymous"></script>
+    <script src="https://sdk-cdn.mypurecloud.com/javascript/170.0.0/purecloud-platform-client-v2.min.js"></script>
+    <script src="https://sdk-cdn.mypurecloud.com/client-apps/2.6.3/purecloud-client-app-sdk-de77761d.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment-with-locales.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@v2-latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.11/lodash.min.js"></script>
+    <script src="oauth.js"></script>
+    <script src="util.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="app.css" />
+</head>
+
+<body>
+    <!-- template for the authenticating component -->
+    <script type="text/x-template" id="authenticating-template">
+        <div>
+            <section class="authenticating"
+                    v-bind:class="{'hidden':this.authenticated || this.errorMessage}">
+                Authenticating to Genesys Cloud ...
+            </section>
+            <section class="failure"
+                    v-bind:class="{'hidden':!this.errorMessage}">
+                {{this.errorMessage}}
+            </section>
+        </div>
+    </script>
+
+    <!-- template for the profile component -->
+    <!-- Hidden Profile by Sky
+    <script type="text/x-template" id="profile-template">
+        <section class="user-profile">
+            <div @click="profileLinkListener" class="profile-link">
+                <a href="#" aria-label="Click to view user's profile in Genesys Cloud">
+                    <div v-bind:class="{'placeholder-pic':true, hidden:imageUri}" aria-label="User profile picture missing">?</div>
+                    <img v-bind:class="{'profile-pic':true, hidden:!imageUri}" v-bind:src="imageUri" aria-label="Profile picture for User">
+                </a>
+            </div>
+            <div class="base-info">
+                <div class="name">{{ profileData.name }}</div>
+                <div class="email">{{ profileData.email }}</div>
+                <div class="department">{{ profileData.department }}</div>
+            </div>
+        </section>
+    </script>
+    hidden end -->
+    <!-- template for the conversations component -->
+    <script type="text/x-template" id="conversations-template">
+        <section class="conversation-list">
+            <div class="conversations">
+                <div v-if="conv.id" v-for="conv in conversations"
+                    class="card">
+                    <div class="card-header">
+                        <span class="live-header" v-if="!conv.endTime">
+                            Live
+                        </span>
+                        <span class="evaluated-header" v-else-if="convEvalMap.has(conv.id)">
+                            Evaluated
+                        </span>
+                        <span class="finished-header" v-else>
+                            Finished
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-link">
+                            <h5>
+                                <a @click="viewInteraction(conv.id)">
+                                   {{conv.participants[0].attributes.name}}
+                                </a>
+                            </h5>
+                        </button>
+
+                        <p class="card-text mb-2 text-muted">
+                            Start: {{moment(conv.startTime).format('MMM Do YYYY, h:mm:ss A')}}
+                        </p>
+                        <p v-if="conv.endTime" class="card-text mb-2 text-muted">
+                            End: &nbsp {{moment(conv.endTime).format('MMM Do YYYY, h:mm:ss A')}}
+                        </p>
+                        <p> MediaType:  {{conv.participants[0].attributes.MediaType}} </p>
+                        <p> FirsName:  {{conv.participants[0].attributes.FirstName}} </p>
+                        <p> LastName:  {{conv.participants[0].attributes.LastName}} </p>
+                        <p> PhoneNumber:  {{conv.participants[0].attributes.PhoneNumber}} </p>
+                        <p> Country:  {{conv.participants[0].attributes.Country}} </p>
+                        <p> Language:  {{conv.participants[0].attributes.Language}} </p>
+                        <p> EmailAddress:  {{conv.participants[0].attributes.EmailAddress}} </p>
+                        <p> ProblemCategory1:  {{conv.participants[0].attributes.ProblemCategory1}} </p>
+                        <p> ProblemCategory2:  {{conv.participants[0].attributes.ProblemCategory2}} </p>
+                        <p> SerialNumber:  {{conv.participants[0].attributes.SerialNumber}} </p>
+                        <p> Device:  {{conv.participants[0].attributes.Device}} </p>
+                        <p> DeviceOwner:  {{conv.participants[0].attributes.DeviceOwner}} </p>
+                        <p> DeviceOwnerNumber:  {{conv.participants[0].attributes.DeviceOwnerNumber}} </p>
+                
+                    </div>
+                </div>
+            </div>
+        </section>
+    </script>
+
+    <!-- template for the conversations component -->
+    <!--  Hidden this by sky
+    <script type="text/x-template" id="tester-template">
+        <section class="manual-tester">
+            <form @submit.prevent="getConversationOrEvaluation">
+                <h2>Manual Tester</h2>
+                <div class="form-group conversation-id">
+                    <label for="conversation-id">Conversation ID:</label>
+                    <input type="text"
+                        class="form-control"
+                        id="conversation-id"
+                        v-model="convId">
+                </div>
+                <div class="form-group evaluation-id">
+                    <label for="evaluation-id">Evaluation ID:</label>
+                    <input type="text"
+                        class="form-control"
+                        id="evaluation-id"
+                        v-model="evalId">
+                </div>
+                <div class="form-group">
+                    <button type="submit"
+                        class="btn btn-primary"
+                        v-bind:class="{'disabled':!this.convId}">
+                        Submit
+                    </button>
+                </div>
+            </form>
+        </section>
+    </script>
+     End hidden by sky-->
+    
+    <!-- app -->
+    <div id="app">
+        <!-- authenticating placeholder-->
+        <authenticating :error-message="errorMessage"
+                        :authenticated="authenticated">
+
+        </authenticating>
+
+        <!-- user profile -->
+        <profile :profile-data="profileData"
+                v-bind:class="{'hidden':!this.authenticated}">
+
+        </profile>
+
+        <!-- evaluation list -->
+        <conversations :conversations-data="conversationsData"
+                    v-bind:class="{'hidden':!this.authenticated}">
+
+        </conversations>
+
+        <!-- manual tester -->
+        <tester v-bind:class="{'hidden':!this.authenticated}">
+
+        </tester>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
